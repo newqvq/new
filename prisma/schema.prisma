@@ -1,0 +1,358 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ProductStatus {
+  ACTIVE
+  DRAFT
+  ARCHIVED
+}
+
+enum RechargeStatus {
+  AWAITING_PAYMENT
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum RechargeNetwork {
+  TRC20
+  ERC20
+  BEP20
+}
+
+enum RechargeVerificationStatus {
+  PENDING
+  VERIFIED
+  FAILED
+  UNAVAILABLE
+}
+
+enum LedgerType {
+  RECHARGE
+  COMMISSION
+  ORDER_PAYMENT
+  ORDER_REFUND
+  WITHDRAWAL_REQUEST
+  WITHDRAWAL_REJECT
+  ADMIN_ADJUSTMENT
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  FULFILLED
+  REFUNDED
+  CANCELLED
+}
+
+enum OrderDeliveryType {
+  MANUAL
+  CRAZYSMM
+}
+
+enum ProductFulfillmentMode {
+  MANUAL
+  CRAZYSMM
+}
+
+enum UpstreamProvider {
+  CRAZYSMM
+}
+
+enum UpstreamServiceType {
+  DEFAULT
+  CUSTOM_COMMENTS
+  SUBSCRIPTIONS
+}
+
+enum UpstreamSubmissionStatus {
+  NOT_REQUIRED
+  PENDING
+  SUBMITTED
+  FAILED
+  UNKNOWN
+}
+
+enum CommissionStatus {
+  SETTLED
+  VOID
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id                 String             @id @default(cuid())
+  email              String             @unique
+  passwordHash       String
+  displayName        String
+  phone              String?
+  inviteCode         String             @unique
+  role               Role               @default(USER)
+  referrerId         String?
+  referrer           User?              @relation("UserReferrals", fields: [referrerId], references: [id], onDelete: SetNull)
+  referrals          User[]             @relation("UserReferrals")
+  wallet             Wallet?
+  orders             Order[]            @relation("UserOrders")
+  rechargeOrders     RechargeOrder[]    @relation("RechargeOwner")
+  reviewedRecharges  RechargeOrder[]    @relation("RechargeReviewer")
+  withdrawalRequests WithdrawalRequest[] @relation("WithdrawalOwner")
+  reviewedWithdrawals WithdrawalRequest[] @relation("WithdrawalReviewer")
+  handledOrders      Order[]            @relation("OrderHandler")
+  walletEntries      WalletLedger[]
+  commissionSources  CommissionRecord[] @relation("CommissionFrom")
+  commissionReceipts CommissionRecord[] @relation("CommissionTo")
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([referrerId])
+  @@index([role])
+}
+
+model Wallet {
+  id           String         @id @default(cuid())
+  userId       String         @unique
+  balanceMicros BigInt        @default(0)
+  version      Int            @default(0)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledgerEntries WalletLedger[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Product {
+  id                    String                 @id @default(cuid())
+  slug                  String                 @unique
+  name                  String
+  subtitle              String
+  category              String
+  cover                 String
+  summary               String
+  description           String
+  tags                  String
+  deliveryNote          String
+  priceMicros           BigInt
+  fulfillmentMode       ProductFulfillmentMode @default(MANUAL)
+  listingMin            Int?
+  listingMax            Int?
+  listingAverageTime    String?
+  upstreamProvider      UpstreamProvider?
+  upstreamServiceId     String?
+  upstreamServiceType   UpstreamServiceType?
+  upstreamSupportsRefill Boolean               @default(false)
+  upstreamSupportsCancel Boolean               @default(false)
+  sortOrder             Int                    @default(0)
+  status                ProductStatus          @default(ACTIVE)
+  orders                Order[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  @@index([status, sortOrder])
+  @@index([category])
+  @@index([fulfillmentMode, status, sortOrder])
+}
+
+model RechargeOrder {
+  id                           String                     @id @default(cuid())
+  serialNo                     String                     @unique
+  userId                       String
+  reviewerId                   String?
+  network                      RechargeNetwork
+  walletAddress                String
+  amountMicros                 BigInt
+  creditedMicros               BigInt                     @default(0)
+  txHash                       String?                    @unique
+  proofNote                    String?
+  status                       RechargeStatus             @default(AWAITING_PAYMENT)
+  verificationStatus           RechargeVerificationStatus @default(PENDING)
+  verificationMessage          String?
+  verificationCheckedAt        DateTime?
+  verificationConfirmations    Int?
+  verificationBlockNumber      Int?
+  verificationDetectedAmountMicros BigInt?
+  verificationDetectedToAddress String?
+  adminNote                    String?
+  submittedAt                  DateTime?
+  reviewedAt                   DateTime?
+  expiresAt                    DateTime?
+  user                         User                       @relation("RechargeOwner", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer                     User?                      @relation("RechargeReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  walletEntries                WalletLedger[]
+  commissionRecords           CommissionRecord[]
+  createdAt                    DateTime                   @default(now())
+  updatedAt                    DateTime                   @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([verificationStatus, createdAt])
+}
+
+model WithdrawalRequest {
+  id            String           @id @default(cuid())
+  serialNo      String           @unique
+  userId        String
+  reviewerId    String?
+  network       RechargeNetwork
+  walletAddress String
+  amountMicros  BigInt
+  txHash        String?          @unique
+  userNote      String?
+  reviewNote    String?
+  status        WithdrawalStatus @default(PENDING)
+  reviewedAt    DateTime?
+  user          User             @relation("WithdrawalOwner", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer      User?            @relation("WithdrawalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  walletEntries WalletLedger[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+}
+
+model Order {
+  id                       String                   @id @default(cuid())
+  serialNo                 String                   @unique
+  userId                   String
+  handlerId                String?
+  productId                String
+  productSnapshotName      String
+  productSnapshotPriceMicros BigInt
+  userNote                 String?
+  targetLink               String?
+  quantity                 Int?
+  runs                     Int?
+  intervalMinutes          Int?
+  commentsText             String?
+  subscriptionUsername     String?
+  subscriptionMin          Int?
+  subscriptionMax          Int?
+  subscriptionPosts        Int?
+  subscriptionOldPosts     Int?
+  subscriptionDelayMinutes Int?
+  subscriptionExpiry       DateTime?
+  upstreamProvider         UpstreamProvider?
+  upstreamServiceId        String?
+  upstreamServiceType      UpstreamServiceType?
+  upstreamOrderId          String?
+  upstreamStatus           String?
+  upstreamCharge           String?
+  upstreamStartCount       String?
+  upstreamRemains          String?
+  upstreamCurrency         String?
+  upstreamSyncMessage      String?
+  upstreamRequestPayload   String?
+  upstreamResponsePayload  String?
+  upstreamSubmissionStatus UpstreamSubmissionStatus @default(NOT_REQUIRED)
+  upstreamSubmittedAt      DateTime?
+  upstreamLastSyncAt       DateTime?
+  fulfillmentNote          String?
+  status                   OrderStatus              @default(PENDING)
+  deliveryType             OrderDeliveryType        @default(MANUAL)
+  handledAt                DateTime?
+  user                     User                     @relation("UserOrders", fields: [userId], references: [id], onDelete: Cascade)
+  handler                  User?                    @relation("OrderHandler", fields: [handlerId], references: [id], onDelete: SetNull)
+  product                  Product                  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  walletEntries            WalletLedger[]
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([deliveryType, upstreamSubmissionStatus, createdAt])
+  @@index([upstreamOrderId])
+}
+
+model WalletLedger {
+  id                String           @id @default(cuid())
+  entryKey          String           @unique
+  walletId          String
+  userId            String
+  rechargeOrderId   String?
+  withdrawalRequestId String?
+  orderId           String?
+  commissionRecordId String?
+  createdById       String?
+  type              LedgerType
+  direction         LedgerDirection
+  amountMicros      BigInt
+  balanceBeforeMicros BigInt
+  balanceAfterMicros BigInt
+  note              String
+  wallet            Wallet           @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rechargeOrder     RechargeOrder?   @relation(fields: [rechargeOrderId], references: [id], onDelete: SetNull)
+  withdrawalRequest WithdrawalRequest? @relation(fields: [withdrawalRequestId], references: [id], onDelete: SetNull)
+  order             Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  commissionRecord  CommissionRecord? @relation(fields: [commissionRecordId], references: [id], onDelete: SetNull)
+  createdAt         DateTime         @default(now())
+
+  @@index([walletId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model CommissionRecord {
+  id             String           @id @default(cuid())
+  rechargeOrderId String
+  fromUserId     String
+  toUserId       String
+  rateBasisPoints Int
+  amountMicros   BigInt
+  status         CommissionStatus @default(SETTLED)
+  note           String?
+  rechargeOrder  RechargeOrder    @relation(fields: [rechargeOrderId], references: [id], onDelete: Cascade)
+  fromUser       User             @relation("CommissionFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser         User             @relation("CommissionTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  walletEntries  WalletLedger[]
+  createdAt      DateTime         @default(now())
+
+  @@unique([rechargeOrderId, toUserId])
+  @@index([toUserId, createdAt])
+}
+
+model ProductCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder, name])
+}
+
+model SecurityThrottle {
+  id              String    @id @default(cuid())
+  scope           String
+  subjectHash     String
+  hits            Int       @default(0)
+  lockouts        Int       @default(0)
+  windowStartedAt DateTime
+  blockedUntil    DateTime?
+  lastSeenAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([scope, subjectHash])
+  @@index([scope, blockedUntil])
+}
