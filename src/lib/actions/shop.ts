@@ -6,6 +6,7 @@ import {
   OrderDeliveryType,
   OrderStatus,
   ProductStatus,
+  RechargeProvider,
   RechargeNetwork,
   RechargeStatus,
   WithdrawalStatus,
@@ -21,6 +22,7 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth";
 import { getActionCopy } from "@/lib/action-copy";
 import { CrazysmmApiError, submitCrazysmmOrder } from "@/lib/crazysmm";
+import { createCryptomusInvoice } from "@/lib/cryptomus";
 import { env } from "@/lib/env";
 import { getFulfillmentCopy } from "@/lib/fulfillment-copy";
 import { getCurrentLocale } from "@/lib/i18n-server";
@@ -344,19 +346,49 @@ export async function createRechargeOrderAction(formData: FormData) {
     );
   }
 
-  const rechargeOrder = await prisma.rechargeOrder.create({
-    data: {
-      serialNo: generateSerial("RC"),
-      userId: session.userId,
-      network: parsed.data.network,
-      walletAddress: getRechargeAddress(parsed.data.network),
+  let rechargeOrder;
+  let paymentUrl = "";
+
+  try {
+    const serialNo = generateSerial("RC");
+    const invoice = await createCryptomusInvoice({
       amountMicros,
-      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 6),
-    },
-  });
+      network: parsed.data.network,
+      serialNo,
+    });
+
+    rechargeOrder = await prisma.rechargeOrder.create({
+      data: {
+        serialNo,
+        userId: session.userId,
+        network: parsed.data.network,
+        walletAddress: invoice.address || getRechargeAddress(parsed.data.network),
+        amountMicros,
+        provider: RechargeProvider.CRYPTOMUS,
+        providerPaymentUuid: invoice.uuid,
+        providerPaymentUrl: invoice.paymentUrl || null,
+        providerStatus: invoice.status,
+        providerPayload: invoice.raw,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 6),
+      },
+    });
+    paymentUrl = invoice.paymentUrl;
+  } catch (error) {
+    redirect(
+      withQueryMessage(
+        "/recharge",
+        "error",
+        resolveErrorMessage(error, actionCopy.common.submitFailed),
+      ),
+    );
+  }
 
   revalidatePath("/dashboard");
   revalidatePath("/recharge");
+
+  if (paymentUrl) {
+    redirect(paymentUrl);
+  }
 
   redirect(
     withQueryMessage(

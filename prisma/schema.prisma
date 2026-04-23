@@ -39,6 +39,11 @@ enum RechargeVerificationStatus {
   UNAVAILABLE
 }
 
+enum RechargeProvider {
+  MANUAL
+  CRYPTOMUS
+}
+
 enum LedgerType {
   RECHARGE
   COMMISSION
@@ -191,6 +196,11 @@ model RechargeOrder {
   verificationBlockNumber      Int?
   verificationDetectedAmountMicros BigInt?
   verificationDetectedToAddress String?
+  provider                     RechargeProvider          @default(MANUAL)
+  providerPaymentUuid          String?                    @unique
+  providerPaymentUrl           String?                    @db.VarChar(500)
+  providerStatus               String?                    @db.VarChar(64)
+  providerPayload              String?                    @db.Text
   adminNote                    String?
   submittedAt                  DateTime?
   reviewedAt                   DateTime?
@@ -205,6 +215,7 @@ model RechargeOrder {
   @@index([userId, status])
   @@index([status, createdAt])
   @@index([verificationStatus, createdAt])
+  @@index([provider, providerStatus])
 }
 
 model WithdrawalRequest {

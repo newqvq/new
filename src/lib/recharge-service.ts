@@ -1,4 +1,7 @@
 import {
+  CommissionStatus,
+  LedgerDirection,
+  LedgerType,
   Prisma,
   PrismaClient,
   RechargeOrder,
@@ -6,7 +9,9 @@ import {
   RechargeVerificationStatus,
 } from "@prisma/client";
 
+import { env } from "./env";
 import { Locale } from "./i18n";
+import { calculateByBasisPoints } from "./money";
 import { verifyRechargeOnChain } from "./recharge-verifier";
 import {
   canRecheckRecharge,
@@ -145,4 +150,167 @@ export function rechargeCanBeRechecked(
   recharge: Pick<RechargeOrder, "status" | "expiresAt">,
 ) {
   return canRecheckRecharge(recharge);
+}
+
+export async function creditRechargeToWallet(
+  tx: TxClient,
+  rechargeOrderId: string,
+  options: {
+    createdById?: string | null;
+    adminNote?: string;
+    providerStatus?: string;
+    providerPayload?: string;
+  } = {},
+) {
+  const currentRecharge = await tx.rechargeOrder.findUnique({
+    where: {
+      id: rechargeOrderId,
+    },
+    include: {
+      user: {
+        include: {
+          wallet: true,
+          referrer: {
+            include: {
+              wallet: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!currentRecharge) {
+    throw new Error("Recharge order does not exist.");
+  }
+
+  if (!currentRecharge.user.wallet) {
+    throw new Error("User wallet does not exist.");
+  }
+
+  const alreadyCredited = await tx.walletLedger.findUnique({
+    where: {
+      entryKey: `recharge:${currentRecharge.id}`,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (alreadyCredited || currentRecharge.status === RechargeStatus.APPROVED) {
+    return { credited: false, recharge: currentRecharge };
+  }
+
+  if (
+    currentRecharge.status !== RechargeStatus.AWAITING_PAYMENT &&
+    currentRecharge.status !== RechargeStatus.UNDER_REVIEW
+  ) {
+    throw new Error("Recharge order is already closed.");
+  }
+
+  await tx.rechargeOrder.update({
+    where: {
+      id: currentRecharge.id,
+    },
+    data: {
+      status: RechargeStatus.APPROVED,
+      creditedMicros: currentRecharge.amountMicros,
+      verificationStatus: RechargeVerificationStatus.VERIFIED,
+      verificationMessage: "Payment confirmed by Cryptomus.",
+      verificationCheckedAt: new Date(),
+      adminNote: options.adminNote,
+      reviewerId: options.createdById ?? null,
+      reviewedAt: new Date(),
+      providerStatus: options.providerStatus,
+      providerPayload: options.providerPayload,
+    },
+  });
+
+  const userWalletBefore = currentRecharge.user.wallet.balanceMicros;
+
+  await tx.wallet.update({
+    where: {
+      id: currentRecharge.user.wallet.id,
+    },
+    data: {
+      balanceMicros: {
+        increment: currentRecharge.amountMicros,
+      },
+      version: {
+        increment: 1,
+      },
+    },
+  });
+
+  await tx.walletLedger.create({
+    data: {
+      entryKey: `recharge:${currentRecharge.id}`,
+      walletId: currentRecharge.user.wallet.id,
+      userId: currentRecharge.userId,
+      rechargeOrderId: currentRecharge.id,
+      createdById: options.createdById ?? null,
+      type: LedgerType.RECHARGE,
+      direction: LedgerDirection.CREDIT,
+      amountMicros: currentRecharge.amountMicros,
+      balanceBeforeMicros: userWalletBefore,
+      balanceAfterMicros: userWalletBefore + currentRecharge.amountMicros,
+      note: `Recharge credited: ${currentRecharge.serialNo}`,
+    },
+  });
+
+  if (currentRecharge.user.referrerId && currentRecharge.user.referrer?.wallet) {
+    const commissionAmount = calculateByBasisPoints(
+      currentRecharge.amountMicros,
+      env.COMMISSION_RATE_BPS,
+    );
+
+    if (commissionAmount > 0n) {
+      const commission = await tx.commissionRecord.create({
+        data: {
+          rechargeOrderId: currentRecharge.id,
+          fromUserId: currentRecharge.userId,
+          toUserId: currentRecharge.user.referrerId,
+          rateBasisPoints: env.COMMISSION_RATE_BPS,
+          amountMicros: commissionAmount,
+          status: CommissionStatus.SETTLED,
+          note: `Recharge commission from ${currentRecharge.serialNo}`,
+        },
+      });
+
+      const referrerWalletBefore = currentRecharge.user.referrer.wallet.balanceMicros;
+
+      await tx.wallet.update({
+        where: {
+          id: currentRecharge.user.referrer.wallet.id,
+        },
+        data: {
+          balanceMicros: {
+            increment: commissionAmount,
+          },
+          version: {
+            increment: 1,
+          },
+        },
+      });
+
+      await tx.walletLedger.create({
+        data: {
+          entryKey: `commission:${commission.id}`,
+          walletId: currentRecharge.user.referrer.wallet.id,
+          userId: currentRecharge.user.referrerId,
+          rechargeOrderId: currentRecharge.id,
+          commissionRecordId: commission.id,
+          createdById: options.createdById ?? null,
+          type: LedgerType.COMMISSION,
+          direction: LedgerDirection.CREDIT,
+          amountMicros: commissionAmount,
+          balanceBeforeMicros: referrerWalletBefore,
+          balanceAfterMicros: referrerWalletBefore + commissionAmount,
+          note: `Commission from referred user ${currentRecharge.user.displayName}`,
+        },
+      });
+    }
+  }
+
+  return { credited: true, recharge: currentRecharge };
 }
