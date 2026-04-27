@@ -6,6 +6,7 @@ import { getViewer } from "@/lib/data";
 import { getMarketingCopy } from "@/lib/i18n";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { formatUsdt } from "@/lib/money";
+import { getPublicPageCopy } from "@/lib/support";
 import { getWithdrawalCopy } from "@/lib/withdrawal-copy";
 
 function getDisplayHandle(
@@ -25,6 +26,7 @@ export async function SiteHeader() {
   const viewer = await getViewer();
   const locale = await getCurrentLocale();
   const copy = getMarketingCopy(locale);
+  const publicCopy = getPublicPageCopy(locale);
   const withdrawalCopy = getWithdrawalCopy(locale);
   const isAdmin = viewer?.role === "ADMIN";
   const navItems = isAdmin
@@ -35,12 +37,14 @@ export async function SiteHeader() {
         { href: "/admin/orders", label: copy.admin.shell.nav.orders },
         { href: "/admin/withdrawals", label: withdrawalCopy.admin.navLabel },
         { href: "/admin/users", label: copy.admin.shell.nav.users },
+        { href: "/contact", label: publicCopy.footer.contact },
       ]
     : [
         { href: "/", label: copy.nav.home },
         { href: "/recharge", label: copy.nav.recharge },
         { href: "/orders", label: copy.nav.orders },
         { href: "/dashboard", label: copy.nav.account },
+        { href: "/contact", label: publicCopy.footer.contact },
       ];
 
   return (
