@@ -3,7 +3,7 @@ import { Locale } from "./i18n";
 
 export const supportConfig = {
   email: env.SUPPORT_EMAIL,
-  telegram: env.SUPPORT_TELEGRAM || "@your_support",
+  telegram: env.SUPPORT_TELEGRAM || "@vc5444",
   hours: env.SUPPORT_HOURS,
 };
 

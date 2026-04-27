@@ -26,8 +26,8 @@ const notoSansKr = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "Service Platform",
-  description: "USDT recharge, balance payment, and manual fulfillment for digital services.",
+  title: "@vc5444",
+  description: "@vc5444 digital services with USDT recharge, balance payment, and manual fulfillment.",
 };
 
 export default async function RootLayout({
