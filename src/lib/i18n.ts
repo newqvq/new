@@ -15,7 +15,7 @@ export function resolveLocale(value?: string | null): Locale {
 
 export const marketingCopy = {
   zh: {
-    siteName: "@vc5444",
+    siteName: "星链小铺",
     siteTagline: "USDT 充值后转平台余额下单",
     siteDescription:
       "白底简洁的数字服务商城，支持 USDT 充值、平台余额支付与人工交付。",
@@ -361,7 +361,7 @@ export const marketingCopy = {
     },
   },
   en: {
-    siteName: "@vc5444",
+    siteName: "StarChain Shop",
     siteTagline: "Recharge with USDT, order with platform balance",
     siteDescription:
       "A clean white storefront for digital services with USDT recharge, balance payments, and manual fulfillment.",
@@ -711,7 +711,7 @@ export const marketingCopy = {
     },
   },
   ko: {
-    siteName: "@vc5444",
+    siteName: "스타체인샵",
     siteTagline: "USDT 충전 후 플랫폼 잔액으로 주문",
     siteDescription:
       "화이트 배경의 간결한 디지털 서비스 스토어로, USDT 충전과 잔액 결제, 수동 전달을 지원합니다.",
