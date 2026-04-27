@@ -10,7 +10,7 @@ export const localeLabels: Record<Locale, string> = {
 };
 
 export function resolveLocale(value?: string | null): Locale {
-  return locales.includes(value as Locale) ? (value as Locale) : "zh";
+  return locales.includes(value as Locale) ? (value as Locale) : "en";
 }
 
 export const marketingCopy = {
