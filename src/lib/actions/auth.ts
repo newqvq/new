@@ -97,6 +97,40 @@ function redirectOnSecurityError(error: unknown, path: string) {
   throw error;
 }
 
+function isRegistrationInfrastructureError(error: unknown) {
+  if (isSecurityThrottleError(error)) {
+    return false;
+  }
+
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return true;
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return ["P1000", "P1001", "P1002", "P1017", "P2021", "P2022"].includes(
+      error.code,
+    );
+  }
+
+  return error instanceof Prisma.PrismaClientValidationError;
+}
+
+async function runRegistrationStep<T>(
+  step: () => Promise<T>,
+  failedMessage: string,
+) {
+  try {
+    return await step();
+  } catch (error) {
+    if (isRegistrationInfrastructureError(error)) {
+      console.error("Registration infrastructure error", error);
+      redirect(withQueryMessage("/sign-up", "error", failedMessage));
+    }
+
+    throw error;
+  }
+}
+
 export async function registerAction(formData: FormData) {
   const requestContext = await getRequestContext();
   const locale = await getCurrentLocale();
@@ -108,12 +142,16 @@ export async function registerAction(formData: FormData) {
   const registerIdentityKey = buildIdentityThrottleKey("auth.register.identity", rawEmail);
 
   try {
-    await assertRateLimitsOpen(
-      [
-        ...(registerIpKey ? [registerIpKey] : []),
-        ...(registerIdentityKey ? [registerIdentityKey] : []),
-      ],
-      securityCopy.registerTooManyAttempts,
+    await runRegistrationStep(
+      () =>
+        assertRateLimitsOpen(
+          [
+            ...(registerIpKey ? [registerIpKey] : []),
+            ...(registerIdentityKey ? [registerIdentityKey] : []),
+          ],
+          securityCopy.registerTooManyAttempts,
+        ),
+      actionCopy.auth.messages.registerRetry,
     );
   } catch (error) {
     redirectOnSecurityError(error, "/sign-up");
@@ -155,10 +193,14 @@ export async function registerAction(formData: FormData) {
   }
 
   const email = parsed.data.email.toLowerCase();
-  const existingUser = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
+  const existingUser = await runRegistrationStep(
+    () =>
+      prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      }),
+    actionCopy.auth.messages.registerRetry,
+  );
 
   if (existingUser) {
     try {
@@ -185,14 +227,19 @@ export async function registerAction(formData: FormData) {
 
   let referrerId: string | null = null;
   if (parsed.data.inviteCode) {
-    const referrer = await prisma.user.findUnique({
-      where: {
-        inviteCode: parsed.data.inviteCode.toUpperCase(),
-      },
-      select: {
-        id: true,
-      },
-    });
+    const normalizedInviteCode = parsed.data.inviteCode.toUpperCase();
+    const referrer = await runRegistrationStep(
+      () =>
+        prisma.user.findUnique({
+          where: {
+            inviteCode: normalizedInviteCode,
+          },
+          select: {
+            id: true,
+          },
+        }),
+      actionCopy.auth.messages.registerRetry,
+    );
 
     if (!referrer) {
       try {
@@ -213,31 +260,39 @@ export async function registerAction(formData: FormData) {
     referrerId = referrer.id;
   }
 
-  const inviteCode = await createUniqueInviteCode(
-    parsed.data.displayName,
-    actionCopy.auth.messages.inviteCodeFailed,
+  const inviteCode = await runRegistrationStep(
+    () =>
+      createUniqueInviteCode(
+        parsed.data.displayName,
+        actionCopy.auth.messages.inviteCodeFailed,
+      ),
+    actionCopy.auth.messages.registerRetry,
   );
   const passwordHash = await bcrypt.hash(parsed.data.password, 12);
 
   try {
-    const user = await prisma.user.create({
-      data: {
-        email,
-        displayName: parsed.data.displayName,
-        passwordHash,
-        inviteCode,
-        referrerId,
-        wallet: {
-          create: {},
-        },
-      },
-      select: {
-        id: true,
-        email: true,
-        displayName: true,
-        role: true,
-      },
-    });
+    const user = await runRegistrationStep(
+      () =>
+        prisma.user.create({
+          data: {
+            email,
+            displayName: parsed.data.displayName,
+            passwordHash,
+            inviteCode,
+            referrerId,
+            wallet: {
+              create: {},
+            },
+          },
+          select: {
+            id: true,
+            email: true,
+            displayName: true,
+            role: true,
+          },
+        }),
+      actionCopy.auth.messages.registerRetry,
+    );
 
     await setSession({
       userId: user.id,
@@ -246,10 +301,14 @@ export async function registerAction(formData: FormData) {
       role: user.role,
     });
 
-    await clearRateLimits([
-      ...(registerIpKey ? [registerIpKey] : []),
-      ...(registerIdentityKey ? [registerIdentityKey] : []),
-    ]);
+    await runRegistrationStep(
+      () =>
+        clearRateLimits([
+          ...(registerIpKey ? [registerIpKey] : []),
+          ...(registerIdentityKey ? [registerIdentityKey] : []),
+        ]),
+      actionCopy.auth.messages.registerRetry,
+    );
   } catch (error) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -272,6 +331,13 @@ export async function registerAction(formData: FormData) {
         redirectOnSecurityError(rateLimitError, "/sign-up");
       }
 
+      redirect(
+        withQueryMessage("/sign-up", "error", actionCopy.auth.messages.registerRetry),
+      );
+    }
+
+    if (isRegistrationInfrastructureError(error)) {
+      console.error("Registration infrastructure error", error);
       redirect(
         withQueryMessage("/sign-up", "error", actionCopy.auth.messages.registerRetry),
       );
