@@ -12,7 +12,7 @@ type AdminUsersPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const USERS_PER_PAGE = 8;
+const USERS_PER_PAGE = 50;
 
 function getPageFromQuery(value?: string) {
   const parsed = Number.parseInt(value || "1", 10);
@@ -147,6 +147,7 @@ export default async function AdminUsersPage({
                 : locale === "ko"
                   ? `총 ${totalCount}명`
                   : `${totalCount} users`,
+            jumpTo: locale === "zh" ? "跳到" : locale === "ko" ? "이동" : "Go to",
           }}
         />
       </section>

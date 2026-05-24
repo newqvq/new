@@ -39,7 +39,7 @@ const actionCopy = {
         rechargeIncomplete: "请填写完整的充值信息。",
         networkDisabled: (label: string) =>
           `${label} 当前尚未启用自动核验，请先使用已开启的网络充值。`,
-        rechargeTooSmall: "单笔充值不得低于 10 USDT。",
+        rechargeTooSmall: "单笔充值不得低于 1 USDT。",
         rechargeCreated: (serialNo: string) =>
           `充值单已创建，请按页面指引转账并提交交易哈希。订单号：${serialNo}`,
         proofIncomplete: "请填写完整的转账凭证。",
@@ -132,7 +132,7 @@ const actionCopy = {
         rechargeIncomplete: "Please complete the recharge form.",
         networkDisabled: (label: string) =>
           `${label} is not enabled for auto verification yet. Please use an enabled network.`,
-        rechargeTooSmall: "A single recharge must be at least 10 USDT.",
+        rechargeTooSmall: "A single recharge must be at least 1 USDT.",
         rechargeCreated: (serialNo: string) =>
           `Recharge order created. Please transfer funds and submit the transaction hash. Order: ${serialNo}`,
         proofIncomplete: "Please complete the transfer proof.",
@@ -226,7 +226,7 @@ const actionCopy = {
         rechargeIncomplete: "충전 정보를 모두 입력하세요.",
         networkDisabled: (label: string) =>
           `${label} 네트워크는 아직 자동 검증이 활성화되지 않았습니다. 활성화된 네트워크를 사용하세요.`,
-        rechargeTooSmall: "1회 충전 금액은 최소 10 USDT여야 합니다.",
+        rechargeTooSmall: "1회 충전 금액은 최소 1 USDT여야 합니다.",
         rechargeCreated: (serialNo: string) =>
           `충전 주문이 생성되었습니다. 안내에 따라 송금 후 거래 해시를 제출하세요. 주문번호: ${serialNo}`,
         proofIncomplete: "송금 증빙 정보를 모두 입력하세요.",

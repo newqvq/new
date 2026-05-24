@@ -380,6 +380,96 @@ GPT Plus 共享席位
 - Site returns `HTTP 500` but DB works from SSH: running Node process has stale
   hPanel env; patch `server.js` or update hPanel env, then restart.
 
+## Post-Deployment Database Sync (AFTER EVERY DEPLOYMENT)
+
+**Hostinger removes the `prisma/` directory and `.env` file after each deployment.**
+After uploading and extracting your build, you MUST run these steps to sync the
+database. The website will NOT work until these complete.
+
+### Quick Steps
+
+From your local machine, run these in order:
+
+```bash
+# 1. Upload the missing files (prisma dir + .env)
+sshpass -p 'YOUR_PASSWORD' ssh -p 65002 u335205377@145.79.25.77 \
+  "mkdir -p /home/u335205377/domains/vc5444.com/nodejs/prisma"
+
+sshpass -p 'YOUR_PASSWORD' scp -P 65002 \
+  prisma/schema.prisma \
+  u335205377@145.79.25.77:/home/u335205377/domains/vc5444.com/nodejs/prisma/schema.prisma
+
+sshpass -p 'YOUR_PASSWORD' scp -P 65002 \
+  prisma/seed-smm.ts \
+  u335205377@145.79.25.77:/home/u335205377/domains/vc5444.com/nodejs/prisma/seed-smm.ts
+
+sshpass -p 'YOUR_PASSWORD' scp -P 65002 \
+  .env \
+  u335205377@145.79.25.77:/home/u335205377/domains/vc5444.com/nodejs/.env
+
+# 2. Run database sync commands on the server
+sshpass -p 'YOUR_PASSWORD' ssh -p 65002 u335205377@145.79.25.77 \
+  "cd /home/u335205377/domains/vc5444.com/nodejs && \
+   export PATH=/home/u335205377/node/bin:\$PATH && \
+   echo '=== db push ===' && \
+   timeout 300 npx prisma@6.16.3 db push --schema prisma/schema.prisma --accept-data-loss && \
+   echo '=== generate ===' && \
+   npx prisma@6.16.3 generate --schema prisma/schema.prisma && \
+   echo '=== seed (optional) ===' && \
+   export CRAZYSMM_API_KEY=c6e892326b81588926df3f06cafc7682 && \
+   timeout 300 npx --yes tsx prisma/seed-smm.ts"
+```
+
+### Important Notes
+
+- **Must use `prisma@6.16.3`** — Hostinger's default Prisma is v7 which does NOT
+  support the `url` property in schema files. Always use `npx prisma@6.16.3`.
+- **Use `timeout 300`** — The shared server has high load (11-17+), and commands
+  can hang. A 5-minute timeout prevents indefinite blocking.
+- **If `db push` hangs or times out** — Try again. The server load fluctuates.
+  If it consistently fails, use the SQL fallback method documented below.
+- **Seed is optional** — `seed-smm.ts` only needs to run if you want to sync
+  product data from CrazySMM. If you only changed schema fields, `db push` +
+  `generate` is enough.
+
+### Alternative: deploy.sh Script
+
+Save this as `/tmp/deploy-vc5444.sh` locally and upload it to the server:
+
+```bash
+#!/bin/bash
+export PATH=/home/u335205377/node/bin:$PATH
+cd /home/u335205377/domains/vc5444.com/nodejs
+
+NPX="/home/u335205377/node/bin/npx"
+
+echo "=== START \$(date) ==="
+echo "Step 1: prisma db push"
+timeout 300 \$NPX prisma@6.16.3 db push --schema prisma/schema.prisma --accept-data-loss 2>&1
+echo "DB_PUSH_EXIT: \$?"
+
+echo "Step 2: prisma generate"
+\$NPX prisma@6.16.3 generate --schema prisma/schema.prisma 2>&1
+echo "GENERATE_EXIT: \$?"
+
+echo "Step 3: seed products (optional)"
+export CRAZYSMM_API_KEY=c6e892326b81588926df3f06cafc7682
+timeout 300 \$NPX --yes tsx prisma/seed-smm.ts 2>&1
+echo "SEED_EXIT: \$?"
+
+echo "=== DONE \$(date) ==="
+```
+
+Upload and run:
+
+```bash
+sshpass -p 'YOUR_PASSWORD' scp -P 65002 /tmp/deploy-vc5444.sh \
+  u335205377@145.79.25.77:/home/u335205377/domains/vc5444.com/nodejs/deploy.sh
+
+sshpass -p 'YOUR_PASSWORD' ssh -p 65002 u335205377@145.79.25.77 \
+  "cd /home/u335205377/domains/vc5444.com/nodejs && bash deploy.sh"
+```
+
 ## Security Reminder
 
 After any support session where credentials were shared:

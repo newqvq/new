@@ -47,7 +47,7 @@ type RechargeComposerProps = {
   };
 };
 
-const amountPresets = ["10", "20", "50", "100", "200"];
+const amountPresets = ["1", "10", "50", "100", "200"];
 
 const text = {
   channelLabel: "\u5145\u503c\u6e20\u9053",

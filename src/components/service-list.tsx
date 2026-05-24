@@ -1,22 +1,7 @@
 import Link from "next/link";
 
 import { CategorySelect } from "@/components/category-select";
-import { PaginationNav } from "@/components/pagination-nav";
-
-type ServiceItem = {
-  id: string;
-  slug: string;
-  cover: string;
-  category: string;
-  name: string;
-  subtitle: string;
-  summary: string;
-  deliveryNote: string;
-  priceLabel: string;
-  stock: string;
-  averageTime: string;
-  tags: string[];
-};
+import type { HomeServiceGroup, HomeServiceItem } from "@/lib/home-products";
 
 type ServiceListCopy = {
   categoryLabel: string;
@@ -40,32 +25,16 @@ type ServiceListCopy = {
   };
 };
 
-type ServiceGroup = {
-  id: string;
-  label: string;
-  items: ServiceItem[];
-};
-
 export function ServiceList({
   groups,
   copy,
   activeGroupId,
   visibleItems,
-  totalItems,
-  rowOffset,
-  page,
-  pageCount,
-  searchParams,
 }: {
-  groups: ServiceGroup[];
+  groups: HomeServiceGroup[];
   copy: ServiceListCopy;
   activeGroupId: string;
-  visibleItems: ServiceItem[];
-  totalItems: number;
-  rowOffset: number;
-  page: number;
-  pageCount: number;
-  searchParams: Record<string, string | string[] | undefined>;
+  visibleItems: HomeServiceItem[];
 }) {
   if (groups.length === 0) {
     return (
@@ -140,7 +109,7 @@ export function ServiceList({
           >
             <div className="hidden grid-cols-[56px_minmax(0,1fr)_126px_112px_138px_92px] items-center gap-3 px-4 py-3 lg:grid">
               <div className="text-[13px] font-semibold text-slate-500">
-                {String(rowOffset + index + 1).padStart(2, "0")}
+                {String(index + 1).padStart(2, "0")}
               </div>
 
               <div className="min-w-0">
@@ -177,7 +146,7 @@ export function ServiceList({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                    <span>{String(rowOffset + index + 1).padStart(2, "0")}</span>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
                     <span>{item.category}</span>
                   </div>
                   <div className="mt-1 text-[15px] font-semibold leading-5 text-slate-950">
@@ -206,19 +175,6 @@ export function ServiceList({
             </div>
           </article>
         ))}
-
-        <PaginationNav
-          pathname="/"
-          searchParams={searchParams}
-          page={page}
-          pageCount={pageCount}
-          labels={{
-            previous: copy.pagination.previous,
-            next: copy.pagination.next,
-            page: copy.pagination.page,
-            total: `${totalItems} ${copy.pagination.totalSuffix}`,
-          }}
-        />
       </section>
     </div>
   );

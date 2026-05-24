@@ -564,7 +564,10 @@ export async function upsertProductAction(formData: FormData) {
   redirect(withQueryMessage("/admin/products", "success", actionCopy.admin.messages.productSaved));
 }
 
-export async function upsertProductCategoryAction(formData: FormData) {
+export async function upsertProductCategoryAction(
+  _prevState: { status: "idle" | "success" | "error"; message: string },
+  formData: FormData,
+): Promise<{ status: "idle" | "success" | "error"; message: string }> {
   const requestContext = await getRequestContext();
   const locale = await getCurrentLocale();
   const securityCopy = getSecurityCopy(locale);
@@ -594,13 +597,10 @@ export async function upsertProductCategoryAction(formData: FormData) {
       securityCopy.adminTooManyAttempts,
     );
   } catch (error) {
-    redirect(
-      withQueryMessage(
-        "/admin/products",
-        "error",
-        resolveErrorMessage(error, securityCopy.adminTooManyAttempts),
-      ),
-    );
+    return {
+      status: "error",
+      message: resolveErrorMessage(error, securityCopy.adminTooManyAttempts),
+    };
   }
 
   const parsed = createCategorySchema().safeParse({
@@ -609,7 +609,10 @@ export async function upsertProductCategoryAction(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirect(withQueryMessage("/admin/products", "error", categoryCopy.invalid));
+    return {
+      status: "error",
+      message: categoryCopy.invalid,
+    };
   }
 
   const existing = await prisma.productCategory.findUnique({
@@ -622,7 +625,10 @@ export async function upsertProductCategoryAction(formData: FormData) {
   });
 
   if (existing) {
-    redirect(withQueryMessage("/admin/products", "error", categoryCopy.exists));
+    return {
+      status: "error",
+      message: categoryCopy.exists,
+    };
   }
 
   const slug = await ensureUniqueCategorySlug(parsed.data.name);
@@ -637,7 +643,10 @@ export async function upsertProductCategoryAction(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/admin/products");
-  redirect(withQueryMessage("/admin/products", "success", categoryCopy.saved));
+  return {
+    status: "success",
+    message: categoryCopy.saved,
+  };
 }
 
 const couponSchema = z.object({

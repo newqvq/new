@@ -67,8 +67,8 @@ export const marketingCopy = {
       back: "返回商品列表",
       price: "商品价格",
       notes: "下单须知",
-      note1: "订单提交后会进入人工处理队列，处理结果会回写到订单备注中。",
-      note2: "商品统一使用平台余额支付，不在商品详情页直接拉起外部支付。",
+      note1: "订单提交后请留意订单状态变化",
+      note2: "使用平台余额支付，余额不足请先充值",
       orderNoteLabel: "订单备注",
       orderNotePlaceholder: "可填写邮箱、地区、账号要求或其他交付信息。",
       submitOrder: "提交订单并扣除余额",
@@ -413,10 +413,8 @@ export const marketingCopy = {
       back: "Back to Services",
       price: "Service Price",
       notes: "Order Notes",
-      note1:
-        "After submission, the order enters the manual handling queue and the result is written back to the order note.",
-      note2:
-        "Services are paid using platform balance. External payment is not launched from the service detail page.",
+      note1: "Check order status updates after submission.",
+      note2: "Pay with platform balance. Top up if insufficient.",
       orderNoteLabel: "Order Remark",
       orderNotePlaceholder:
         "Add email, region, account requirements, or any delivery information.",
@@ -763,10 +761,8 @@ export const marketingCopy = {
       back: "서비스 목록으로",
       price: "서비스 가격",
       notes: "주문 안내",
-      note1:
-        "주문 제출 후 수동 처리 대기열로 들어가며, 처리 결과는 주문 비고에 기록됩니다.",
-      note2:
-        "상품은 플랫폼 잔액으로만 결제합니다. 상세 페이지에서 외부 결제를 직접 실행하지 않습니다.",
+      note1: "주문 제출 후 상태 변화를 확인하세요.",
+      note2: "플랫폼 잔액으로 결제하며, 부족하면 먼저 충전하세요.",
       orderNoteLabel: "주문 메모",
       orderNotePlaceholder:
         "이메일, 지역, 계정 조건 또는 전달에 필요한 정보를 입력하세요.",

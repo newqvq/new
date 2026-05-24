@@ -165,7 +165,7 @@ export async function createRechargeOrderAction(formData: FormData) {
     );
   }
 
-  if (amountMicros < 10_000_000n) {
+  if (amountMicros < 1_000_000n) {
     redirect(
       withQueryMessage("/recharge", "error", actionCopy.shop.messages.rechargeTooSmall),
     );

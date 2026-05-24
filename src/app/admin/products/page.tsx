@@ -7,6 +7,7 @@ import {
 } from "@prisma/client";
 
 import { AlertBanner } from "@/components/alert-banner";
+import { CategoryCreateForm } from "@/components/admin/category-create-form";
 import { PaginationNav } from "@/components/pagination-nav";
 import { SubmitButton } from "@/components/submit-button";
 import {
@@ -15,7 +16,6 @@ import {
   deleteProductCategoryAction,
   toggleProductStatusAction,
   upsertProductAction,
-  upsertProductCategoryAction,
 } from "@/lib/actions/admin";
 import {
   getAdminCouponsData,
@@ -33,7 +33,7 @@ type AdminProductsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const ADMIN_PRODUCTS_PER_PAGE = 8;
+const ADMIN_PRODUCTS_PER_PAGE = 50;
 const DEFAULT_LISTING_MIN = 1;
 const DEFAULT_LISTING_AVERAGE_TIME = "5-10分钟";
 
@@ -664,34 +664,7 @@ export default async function AdminProductsPage({
                 <div className="text-[13px] font-semibold text-slate-950">{uiCopy.categoryTitle}</div>
                 <div className="mt-1 text-[11px] leading-6 text-slate-500">{uiCopy.categoryHint}</div>
 
-                <form action={upsertProductCategoryAction} className="mt-4 space-y-3">
-                  <div>
-                    <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      {uiCopy.categoryName}
-                    </label>
-                    <input
-                      name="name"
-                      required
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                      {uiCopy.categorySort}
-                    </label>
-                    <input
-                      name="sortOrder"
-                      defaultValue="100"
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
-                    />
-                  </div>
-                  <SubmitButton
-                    pendingText={uiCopy.categoryCreatePending}
-                    className="w-full justify-center"
-                  >
-                    {uiCopy.categoryCreate}
-                  </SubmitButton>
-                </form>
+                <CategoryCreateForm copy={uiCopy} />
 
                 <div className="mt-4 space-y-2">
                   {categories.length === 0 ? (
@@ -1024,6 +997,7 @@ export default async function AdminProductsPage({
             next: uiCopy.next,
             page: uiCopy.page,
             total: `${filteredProducts.length} ${uiCopy.rows}`,
+            jumpTo: locale === "zh" ? "跳到" : locale === "ko" ? "이동" : "Go to",
           }}
         />
       </section>

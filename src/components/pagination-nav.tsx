@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import { firstValue } from "@/lib/utils";
@@ -14,6 +16,7 @@ type PaginationNavProps = {
     next: string;
     page: string;
     total: string;
+    jumpTo: string;
   };
 };
 
@@ -42,6 +45,21 @@ function buildPageHref(
   return query ? `${pathname}?${query}` : pathname;
 }
 
+function buildPageOptions(
+  pathname: string,
+  searchParams: Record<string, QueryValue>,
+  pageCount: number,
+) {
+  return Array.from({ length: pageCount }, (_, index) => {
+    const pageNumber = index + 1;
+
+    return {
+      pageNumber,
+      href: buildPageHref(pathname, searchParams, pageNumber),
+    };
+  });
+}
+
 function getVisiblePages(page: number, pageCount: number) {
   const maxVisible = 5;
   const half = Math.floor(maxVisible / 2);
@@ -68,6 +86,7 @@ export function PaginationNav({
   }
 
   const visiblePages = getVisiblePages(page, pageCount);
+  const pageOptions = buildPageOptions(pathname, searchParams, pageCount);
 
   return (
     <nav className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -113,6 +132,24 @@ export function PaginationNav({
         >
           {labels.next}
         </Link>
+
+        <label className="ml-1 flex items-center gap-2 text-xs font-semibold text-slate-500">
+          <span>{labels.jumpTo}</span>
+          <select
+            aria-label={labels.jumpTo}
+            defaultValue={buildPageHref(pathname, searchParams, page)}
+            onChange={(event) => {
+              window.location.href = event.target.value;
+            }}
+            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 outline-none transition focus:border-sky-300"
+          >
+            {pageOptions.map((option) => (
+              <option key={option.pageNumber} value={option.href}>
+                {option.pageNumber}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
     </nav>
   );

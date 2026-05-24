@@ -3,18 +3,17 @@ import Link from "next/link";
 import { AlertBanner } from "@/components/alert-banner";
 import { ServiceList } from "@/components/service-list";
 import { getHomepageData, getSiteTextValues, getViewer } from "@/lib/data";
+import { resolveHomeProductSelection } from "@/lib/home-products";
 import { getMarketingCopy } from "@/lib/i18n";
 import { getCurrentLocale } from "@/lib/i18n-server";
 import { formatUsdt } from "@/lib/money";
 import { getListingMetaFromProduct } from "@/lib/order-fulfillment";
 import { getLocalizedProduct } from "@/lib/product-content";
-import { firstValue, getFlashMessage } from "@/lib/utils";
+import { getFlashMessage } from "@/lib/utils";
 
 type HomePageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
-
-const HOME_PRODUCTS_PER_PAGE = 12;
 
 const homePaginationCopy = {
   zh: {
@@ -64,16 +63,6 @@ const homeTableCopy = {
   },
 } as const;
 
-function getPageFromQuery(value?: string) {
-  const parsed = Number.parseInt(value || "1", 10);
-
-  if (Number.isNaN(parsed) || parsed < 1) {
-    return 1;
-  }
-
-  return parsed;
-}
-
 export default async function Home({ searchParams }: HomePageProps) {
   const resolvedSearchParams = await searchParams;
   const flash = getFlashMessage(resolvedSearchParams);
@@ -117,24 +106,9 @@ export default async function Home({ searchParams }: HomePageProps) {
   const requestedCategory = Array.isArray(resolvedSearchParams.category)
     ? resolvedSearchParams.category[0]
     : resolvedSearchParams.category;
-  const validGroupIds = new Set(groups.map((group) => group.id));
-  const activeGroupId =
-    requestedCategory && validGroupIds.has(requestedCategory)
-      ? requestedCategory
-      : "all";
-  const allVisibleItems =
-    activeGroupId === "all"
-      ? groups.flatMap((group) => group.items)
-      : groups.find((group) => group.id === activeGroupId)?.items ?? [];
-  const totalPages = Math.max(1, Math.ceil(allVisibleItems.length / HOME_PRODUCTS_PER_PAGE));
-  const currentPage = Math.min(
-    getPageFromQuery(firstValue(resolvedSearchParams.page)),
-    totalPages,
-  );
-  const pageOffset = (currentPage - 1) * HOME_PRODUCTS_PER_PAGE;
-  const pagedItems = allVisibleItems.slice(
-    pageOffset,
-    pageOffset + HOME_PRODUCTS_PER_PAGE,
+  const { activeGroupId, visibleItems } = resolveHomeProductSelection(
+    groups,
+    requestedCategory,
   );
   const homeCopy = {
     ...copy.home,
@@ -150,12 +124,7 @@ export default async function Home({ searchParams }: HomePageProps) {
         groups={groups}
         copy={homeCopy}
         activeGroupId={activeGroupId}
-        visibleItems={pagedItems}
-        totalItems={allVisibleItems.length}
-        rowOffset={pageOffset}
-        page={currentPage}
-        pageCount={totalPages}
-        searchParams={resolvedSearchParams}
+        visibleItems={visibleItems}
       />
 
       <section className="mb-8 rounded-[24px] border border-slate-200 bg-white px-5 py-6 shadow-sm">

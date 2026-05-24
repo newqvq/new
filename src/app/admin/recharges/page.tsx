@@ -22,7 +22,7 @@ type AdminRechargesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const RECHARGES_PER_PAGE = 10;
+const RECHARGES_PER_PAGE = 50;
 
 function getPageFromQuery(value?: string) {
   const parsed = Number.parseInt(value || "1", 10);
@@ -271,6 +271,7 @@ export default async function AdminRechargesPage({
                 : locale === "ko"
                   ? `총 ${totalCount}건`
                   : `${totalCount} records`,
+            jumpTo: locale === "zh" ? "跳到" : locale === "ko" ? "이동" : "Go to",
           }}
         />
       </section>
